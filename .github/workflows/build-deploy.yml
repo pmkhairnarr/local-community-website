@@ -1,0 +1,55 @@
+name: Build and Deploy Local Community Website
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'data/**'
+      - 'config/**'
+      - 'images/**'
+  workflow_dispatch:
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Clone MCP Server
+      run: |
+        git clone https://github.com/pmkhairnarr/spreadsheet-website-builder-mcp.git mcp-server
+        cd mcp-server
+        npm install
+        
+    - name: Build Community Website
+      run: |
+        cd mcp-server
+        node -e "
+        import SpreadsheetDataReader from './src/SpreadsheetDataReader.js';
+        import WebsiteGenerator from './src/WebsiteGenerator.js';
+        
+        const reader = new SpreadsheetDataReader();
+        const generator = new WebsiteGenerator('./website-output');
+        
+        const data = await reader.readSpreadsheet('../data/local-community.xlsx');
+        
+        await generator.generateWebsite(data, {
+          title: 'Local Community - Building Strong Communities',
+          theme: 'community',
+          description: 'Local community projects and initiatives website'
+        });
+        "
+        
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./mcp-server/website-output
+        publish_branch: gh-pages
